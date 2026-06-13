@@ -66,5 +66,58 @@ namespace FarmCreatures.Inventory
 
             return false;
         }
+
+        public bool HasItem(ItemData item, int amount)
+        {
+            if (item == null || amount <= 0)
+                return false;
+
+            int total = 0;
+
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot.item == item)
+                    total += slot.amount;
+            }
+
+            return total >= amount;
+        }
+
+        public bool RemoveItem(ItemData item, int amount)
+        {
+            if (!HasItem(item, amount))
+                return false;
+
+            int remaining = amount;
+
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot.item != item)
+                    continue;
+
+                int toRemove = Mathf.Min(slot.amount, remaining);
+                slot.amount -= toRemove;
+                remaining -= toRemove;
+
+                if (slot.amount <= 0)
+                    slot.Clear();
+
+                if (remaining <= 0)
+                    return true;
+            }
+
+            return true;
+        }
+
+        public InventorySlot FindFirst(ItemData item)
+        {
+            foreach (InventorySlot slot in slots)
+            {
+                if (slot.item == item && slot.amount > 0)
+                    return slot;
+            }
+
+            return null;
+        }
     }
 }

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d3148bd997744f4ea649a28a481f777, type: 3}
+  m_Name: Puffin
+  m_EditorClassIdentifier: Assembly-CSharp::FarmCreatures.Creatures.CreatureData
+  creatureId: puffin
+  displayName: Puffin
+  icon: {fileID: 0}
+  bodyColor: {r: 0, g: 1, b: 0.66416883, a: 1}
+  moveSpeed: 2
+  wanderRadius: 4
+  idleTime: 2
+  creaturePrefab: {fileID: 7787514513482297800, guid: d12b4747a91eccb40a6bf697fc7a8369, type: 3}

@@ -1,0 +1,58 @@
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+credentials*.json
+secrets*.json
+config.local.*
+
+# Python environments, caches and build output
+.research-venv/
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Runtime state and generated research data
+data/
+logs/
+tmp/
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.db
+*.jsonl
+*.log
+*.pid
+
+# Codex/editor/OS-local files
+.codex-remote-attachments/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local archives and scratch files
+*.zip
+*.7z
+*.tar
+*.gz
+*.bak
+*.tmp
+*.swp

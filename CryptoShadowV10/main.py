@@ -715,7 +715,7 @@ window.v10ToggleJaw=function(){
 };
 window.v10ResetAll=async function(){
   const phrase='ZERAR_TUDO_TESTNET_SHADOW';
-  const typed=prompt('ATENCAO: encerra posicoes e ordens TESTNET e zera Testnet, Shadow Real, Shadow individual e simulacoes. Um backup automatico sera criado.\n\nDigite exatamente: '+phrase);
+  const typed=prompt('ATENCAO: encerra posicoes e ordens TESTNET e zera Testnet, Shadow Real, Shadow individual e simulacoes. Um backup automatico sera criado.\\n\\nDigite exatamente: '+phrase);
   if(typed===null)return;
   if(typed!==phrase){alert('Confirmacao incorreta. Nada foi alterado.');return;}
   if(!confirm('Ultima confirmacao: executar ZERAR TUDO agora?'))return;
@@ -724,7 +724,7 @@ window.v10ResetAll=async function(){
     const response=await fetch('/api/reset/all',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:phrase})});
     const data=await response.json();
     if(!response.ok)throw new Error(data.detail||'Falha ao zerar');
-    alert('Reset concluido. Backup: '+data.backup_dir+'\nNova amostra: '+data.sample_started_at);
+    alert('Reset concluido. Backup: '+data.backup_dir+'\\nNova amostra: '+data.sample_started_at);
     location.reload();
   }catch(error){alert('RESET NAO CONCLUIDO: '+error.message);if(button){button.disabled=false;button.textContent='ZERAR TUDO';}}
 };

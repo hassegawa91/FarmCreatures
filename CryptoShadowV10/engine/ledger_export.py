@@ -86,7 +86,7 @@ def export_ledger_zip(
         "ledger": ledger,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "sample_started_at": config.get("sample_started_at"),
-        "management_revision": (config.get("strategy") or {}).get("management_revision"),
+        "management_revision": (config.get("campaign") or {}).get("management_revision"),
         "database_filename": database_path.name,
         "tables": {},
         "security": "Segredos, tokens, senhas, credenciais e chaves são removidos.",
@@ -147,7 +147,7 @@ def export_all_ledgers_zip(
         "format": "cryptoshadow-all-ledgers-v1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "sample_started_at": config.get("sample_started_at"),
-        "management_revision": (config.get("strategy") or {}).get("management_revision"),
+        "management_revision": (config.get("campaign") or {}).get("management_revision"),
         "ledgers": {},
     }
     with tempfile.TemporaryDirectory(prefix="cryptoshadow_all_") as folder:

@@ -32,9 +32,10 @@ class LedgerExportTests(unittest.TestCase):
             config = {
                 "database_path": "ledger.sqlite", "sample_started_at": "2026-08-10",
                 "execution": {"api_key": "never-export"},
-                "strategy": {"management_revision": "TEST_REV"},
+                "campaign": {"management_revision": "TEST_REV"},
             }
             manifest = export_ledger_zip("testnet", config, root, output)
+            self.assertEqual(manifest["management_revision"], "TEST_REV")
             self.assertEqual(manifest["tables"]["signals"]["rows"], 1)
             with zipfile.ZipFile(output) as archive:
                 row = json.loads(archive.read("tables/signals.jsonl").decode().strip())

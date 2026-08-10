@@ -60,9 +60,18 @@ Os dados brutos somam aproximadamente 5,98 GB e não foram enviados ao GitHub. P
 
 Um ChatGPT trabalhando fora desta máquina terá acesso ao código e a este handoff pelo GitHub, mas não aos bancos locais. Para análise remota, gerar extratos sanitizados e compactos; nunca publicar bancos completos, `.env` ou chaves.
 
+O painel possui botões para gerar esses extratos sob demanda:
+
+- `Baixar Testnet`: sinais, execuções, resultados, eventos e observações de features.
+- `Baixar Shadow Real`: trades e eventos do mercado real simulado.
+- `Baixar Shadow individual`: ledger da Shadow limitada.
+- `Baixar correção staged`: trades e eventos de todas as simulações paralelas.
+
+Cada botão baixa um ZIP com JSONL, manifesto de contagens e `config.sanitized.json`. Valores de chaves, segredos, tokens, senhas e credenciais são removidos automaticamente. Os ZIPs podem ser anexados diretamente a outro ChatGPT.
+
 ## Verificação operacional necessária
 
-O processo `python main.py` ainda existia como PID 21852 no momento deste handoff, porém `http://127.0.0.1:8000/health` não respondeu. Antes de confiar na coleta, verificar o serviço e reiniciá-lo somente se necessário, preservando os ledgers.
+O painel foi reiniciado após a implantação dos exports e respondeu saudável em `http://127.0.0.1:8000/health`, modo Testnet e coleta ativa. O PID observado após o restart era 12476. Sempre preservar os ledgers ao reiniciar.
 
 ## Próxima análise
 

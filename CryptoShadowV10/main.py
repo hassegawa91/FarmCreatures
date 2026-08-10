@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
+import tempfile
 import time
 from typing import Any
 
@@ -11,10 +12,13 @@ from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Query
 from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
 from engine.config import ROOT, load_config
+from engine.ledger_export import LEDGER_SPECS, export_filename, export_ledger_zip
 from engine.service import TradingService
 
 
@@ -485,6 +489,33 @@ def api_legacy_config_write():
     return JSONResponse({"ok": False, "error": "Configuração antiga desativada; a engine usa somente o config.json limpo."}, status_code=409)
 
 
+@app.get("/api/export/ledger/{ledger}")
+def api_export_ledger(ledger: str):
+    if ledger not in LEDGER_SPECS:
+        raise HTTPException(status_code=404, detail="Ledger desconhecido")
+    export_dir = ROOT / "tmp" / "ledger_exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    handle = tempfile.NamedTemporaryFile(
+        prefix=f"{ledger}_", suffix=".zip", dir=export_dir, delete=False,
+    )
+    output_path = Path(handle.name)
+    handle.close()
+    try:
+        export_ledger_zip(ledger, config, ROOT, output_path)
+    except FileNotFoundError as exc:
+        output_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception:
+        output_path.unlink(missing_ok=True)
+        raise
+    return FileResponse(
+        output_path,
+        media_type="application/zip",
+        filename=export_filename(ledger),
+        background=BackgroundTask(output_path.unlink, missing_ok=True),
+    )
+
+
 @app.get("/api/klines/{symbol}")
 def api_klines(symbol: str, interval: str = Query("5m"), limit: int = Query(120)):
     allowed = {"1m", "3m", "5m", "15m", "30m", "1h"}
@@ -620,6 +651,8 @@ button[data-tab="config"],button[data-tab="info"],button[data-tab="analysis"],bu
 #tab-ranking table{min-width:1420px}#tab-ranking th,#tab-ranking td{white-space:nowrap}#tab-ranking td:nth-child(13){white-space:normal;min-width:220px}
 .summary-cards>.summary-card:nth-child(11),.summary-cards>.summary-card:nth-child(12),.summary-cards>.summary-card:nth-child(13){display:none!important}
 .shadow-toggle{border:1px solid #58a6ff;background:#0d2740;color:#79c0ff;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700}
+.ledger-export-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:10px;width:100%}.ledger-export-actions .ledger-label{color:#8b949e;font-size:12px;margin-right:2px}
+.ledger-download{display:inline-block;border:1px solid #8957e5;background:#21143a;color:#d2a8ff;border-radius:8px;padding:7px 10px;text-decoration:none;font-size:12px;font-weight:800}.ledger-download:hover{border-color:#d2a8ff;color:#fff}
 .real-shadow-card{border-color:#1f6feb!important}.real-shadow-card.hidden{display:none!important}
 .real-shadow-panel{margin:10px 0 16px;padding:14px;border:1px solid #1f6feb;border-radius:10px;background:#0b1522;color:#c9d1d9}
 .real-shadow-panel.hidden{display:none!important}.real-shadow-panel h3{margin:0 0 5px;color:#79c0ff}.real-shadow-panel p{margin:3px 0 10px;color:#9fb3c8}
@@ -737,6 +770,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     const levToggle=document.createElement('button');levToggle.id='v10LimitedToggle';levToggle.className='shadow-toggle';levToggle.type='button';levToggle.textContent='Mostrar Shadow limitada';
     levToggle.onclick=()=>{const panel=document.getElementById('v10LimitedShadowPanel');const showing=panel?.classList.toggle('hidden')===false;levToggle.textContent=showing?'Ocultar Shadow limitada':'Mostrar Shadow limitada';};
     funnelHead.appendChild(levToggle);
+    const exports=document.createElement('div');exports.id='v10LedgerExports';exports.className='ledger-export-actions';
+    exports.innerHTML=`<span class="ledger-label">Ledgers para enviar &agrave; an&aacute;lise:</span><a class="ledger-download" href="/api/export/ledger/testnet">Baixar Testnet</a><a class="ledger-download" href="/api/export/ledger/shadow">Baixar Shadow Real</a><a class="ledger-download" href="/api/export/ledger/limited">Baixar Shadow individual</a><a class="ledger-download" href="/api/export/ledger/simulations">Baixar corre&ccedil;&atilde;o staged</a>`;
+    funnelHead.appendChild(exports);
   }
   let lastStrategyStatus=null;
   const metric=(x)=>{

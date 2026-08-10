@@ -1,48 +1,78 @@
-# Handoff curto — análise dos losses V9
+# Handoff — CryptoShadow V10
 
-Capturado em: 2026-08-10 08:43 (America/Sao_Paulo)
+Atualizado em: 2026-08-10 16:10 (America/Sao_Paulo)
 
-## Objetivo do novo chat
+## Objetivo
 
-Diagnosticar quantitativamente por que a amostra V9 ficou negativa. Não zerar ledgers, não encerrar posições e não alterar a engine antes de concluir a análise causal de Testnet e Shadow Real.
+Continuar a observação da correção staged dos fades sem perder o histórico da análise V9. Não resetar amostras, não alterar a estratégia e não operar a Binance real antes de existir evidência quantitativa suficiente.
 
-## Estado operacional
+## Código publicado
 
-- Diretório: `C:\v10`
-- Revisão: `FRESH_CONTINUATION_REAL_FIRST_V9`
-- Início da amostra: `2026-08-09T21:19:09-03:00`
-- Engine rodando, sem erros.
-- Testnet: 58 fechados, 4 abertos, PNL fechado `-83.79598337 USDT`, win rate `43.10%`, PF `0.5541`, expectativa `-0.1269R`.
-- Shadow Real: 67 fechados, 5 abertos, PNL fechado `-36.38355984 USDT`, aberto `-9.26393772 USDT`, PF `0.7720`, win rate `53.73%`.
-- Shadow limitada: 32 fechados, 2 abertos, PNL fechado `-28.20679130 USDT`, aberto `-5.04755270 USDT`, PF `0.6352`.
-- Posições Testnet abertas no snapshot: EPIC SHORT, TRUMP LONG, LA SHORT e BICO LONG.
+- Repositório: `hassegawa91/FarmCreatures`
+- Projeto separado: `CryptoShadowV10/`
+- Branch padrão: `main`
+- Commit inicial publicado: `88b4ed17395342d67356b5fccf6e8601e121360f`
+- O projeto do jogo foi preservado; o commit do V10 apenas adicionou a nova pasta.
+- `.env`, credenciais, bancos, logs, caches, temporários e ambientes virtuais não estão no Git.
 
-## Hipótese inicial a testar — não assumir como conclusão
+## Estado da revisão atual
 
-A taxa de acerto não é o problema isolado: os ganhos típicos do runner são pequenos, enquanto vários `THESIS_EXIT`/`STOP` são grandes. Verificar assimetria de payoff, entradas sem MFE, slippage Testnet, giveback do runner, direção/regime, setup e duplicidade por símbolo.
+- Diretório operacional local: `C:\v10`
+- Revisão: `STAGED_FADE_AB_SHADOW_V10`
+- Início da amostra: `2026-08-10T09:37:30-03:00`
+- Modo: Testnet; Binance real zerada pelo usuário.
+- `VOLATILITY_EXHAUSTION_FADE_SCALP_V1` está em `testnet_observation_only_setups`.
+- A Shadow Real permanece observacional, usando mercado real sem enviar ordens reais.
+- A suíte possui 169 testes e estava integralmente aprovada na publicação.
 
-Exemplos recentes de losses Testnet: ACE `-14.58`, NIL `-10.01`, BEAT `-9.39`, SKYAI `-6.40`, 4USDT `-6.61` e ARC `-6.13` USDT. Houve runners relevantes, como BICO `+14.20` e HOME `+7.41`, mas não compensaram a cauda negativa.
+## Correção staged em teste
 
-## Fontes obrigatórias
+A correção não foi considerada validada pela amostra V9. Ela é um teste A/B paralelo para reduzir a exposição inicial sem eliminar os sinais da amostra:
 
-- `data/v10.sqlite`: execuções e resultados Testnet.
-- `data/real_shadow.sqlite`: Shadow com preços/livro reais.
-- `data/limited_shadow.sqlite`: variante com limite de posições.
-- `data/simulations.sqlite`: simulações paralelas.
-- `config.json`: parâmetros efetivamente usados.
-- `engine/campaign.py`, `engine/volatility_scalp.py`, `engine/dump_reclaim.py`, `engine/real_shadow.py`, `engine/execution.py`.
-- Amostra anterior arquivada: `data/archive/sample_reset_20260809_211909_v8`.
+- Fade LONG: probe de 25% da margem e add dos 75% restantes somente após `+0.20R`.
+- Fade SHORT: probe de 10% da margem, sem add.
+- Margem de referência: 50 USDT; alavancagem de referência: 10x.
+- Os sinais continuam sendo registrados na Shadow/simulação para permitir comparação com a execução integral.
+- O objetivo é medir se a confirmação paga o custo de entradas perdidas e se corta a cauda negativa. Não assumir melhora antes de comparar os mesmos sinais.
 
-## Análise solicitada
+## Primeira leitura da amostra V10
 
-1. Gerar tabela por setup e ambiente: N, wins/losses, PNL, PF, média/mediana, MFE, MAE, duração, taxas, motivo de saída e payoff médio win/loss.
-2. Separar `VOLATILITY_EXHAUSTION_FADE_SCALP_V1`, `VOLATILITY_EXHAUSTION_CONTINUATION_SCALP_V1`, dumps e borders.
-3. Comparar os mesmos sinais Testnet × Shadow Real e explicar divergências de fill, stop, slippage e resultado.
-4. Identificar características comuns dos maiores losses usando evidências de entrada: impulso 5m/15m, OI 5m/15m, taker, LSR, ADX, ATR, volume, spread, idade do arm e direção do BTC.
-5. Medir quantos losses tiveram MFE zero/quase zero, quantos chegaram ao runner, quanto devolveram e quantos teriam sido evitados por lógica causal — sem simplesmente aumentar filtros.
-6. Fazer contrafactuais nos candles públicos: saída atual versus stop maior/menor, entrada atrasada, runner alternativo e ausência de `THESIS_EXIT`.
-7. Entregar primeiro o diagnóstico com evidências. Só depois propor a menor correção capaz de melhorar expectativa sem reduzir drasticamente a quantidade de entradas.
+Auditoria de `data/v10.sqlite` desde o início da revisão:
 
-## Prompt para iniciar o novo chat
+- 5 sinais aceitos e 5 replays públicos.
+- 4 operações Testnet encerradas e 1 pendente.
+- Todas as 4 encerradas eram `VOLATILITY_EXHAUSTION_CONTINUATION_SCALP_V1`, portanto ainda não validam a correção dos fades.
+- PNL líquido Testnet: `+17.0484 USDT`.
+- Win rate: `75%`; profit factor: `6.084`; média: `+0.746R`.
+- Saídas: 1 `STOP`, 2 `RUNNER_STOP` e 1 `THESIS_EXIT`.
+- A amostra é muito pequena e não autoriza conclusão de expectativa.
 
-`Leia C:\v10\NEXT_CHAT_HANDOFF.md e faça a análise completa da amostra V9. Priorize a Shadow Real, compare com a Testnet e não altere nem zere nada antes de apresentar o diagnóstico quantitativo dos losses.`
+## Dados locais
+
+Os dados brutos somam aproximadamente 5,98 GB e não foram enviados ao GitHub. Permanecem disponíveis nesta máquina:
+
+- `data/v10.sqlite`
+- `data/real_shadow.sqlite`
+- `data/limited_shadow.sqlite`
+- `data/simulations.sqlite`
+- V9 arquivada em `data/archive/sample_reset_20260810_0911_v9`
+- Auditoria atual em `tmp/current_sample_audit_20260810.json`
+
+Um ChatGPT trabalhando fora desta máquina terá acesso ao código e a este handoff pelo GitHub, mas não aos bancos locais. Para análise remota, gerar extratos sanitizados e compactos; nunca publicar bancos completos, `.env` ou chaves.
+
+## Verificação operacional necessária
+
+O processo `python main.py` ainda existia como PID 21852 no momento deste handoff, porém `http://127.0.0.1:8000/health` não respondeu. Antes de confiar na coleta, verificar o serviço e reiniciá-lo somente se necessário, preservando os ledgers.
+
+## Próxima análise
+
+1. Confirmar que o serviço e a coleta voltaram a responder sem zerar bancos.
+2. Medir por direção os fades baseline versus staged sobre exatamente os mesmos sinais.
+3. Comparar N, PNL, expectativa em R, PF, MFE/MAE, custo evitado, ganhos sacrificados e exposição média.
+4. Separar LONG e SHORT; a assimetria do probe é intencional.
+5. Não promover a correção para execução real com amostra pequena. Buscar pelo menos dezenas de fades encerrados e estabilidade fora de um único regime.
+6. Se o saldo Testnet limitar a observação, manter a Shadow/simulação como fonte principal em vez de relaxar risco para gerar trades.
+
+## Prompt para o próximo ChatGPT
+
+`Abra o projeto CryptoShadowV10 no repositório hassegawa91/FarmCreatures e leia NEXT_CHAT_HANDOFF.md. Continue o acompanhamento da revisão STAGED_FADE_AB_SHADOW_V10. Não resete os bancos e não trate os primeiros resultados como validação. Se estiver nesta máquina, confira primeiro a saúde do serviço e use os bancos locais para comparar baseline versus staged nos mesmos sinais.`

@@ -47,6 +47,18 @@ class SimulationLedger:
         with self.lock:
             self.db.close()
 
+    def reset(self) -> dict[str, int]:
+        tables = ("simulation_events", "simulation_trades")
+        with self.lock, self.db:
+            counts = {
+                table: int(self.db.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0])
+                for table in tables
+            }
+            for table in tables:
+                self.db.execute(f'DELETE FROM "{table}"')
+            self.db.execute("DELETE FROM sqlite_sequence WHERE name IN (?,?)", tables)
+        return counts
+
     def event(self, timestamp_ms: int, strategy: str, symbol: str, event_type: str, payload: dict[str, Any]) -> None:
         with self.lock, self.db:
             self.db.execute(
@@ -225,6 +237,17 @@ class ParallelStrategyLab:
 
     def close(self) -> None:
         self.ledger.close()
+
+    def reset(self) -> dict[str, int]:
+        counts = self.ledger.reset()
+        self.grid_sessions.clear()
+        self.last_trend_entry.clear()
+        self.last_grid_fill_candle.clear()
+        self.grid_observations.clear()
+        self.grid_cooldowns.clear()
+        self.last_scalp_entry_candle.clear()
+        self.leveraged_live_prices.clear()
+        return counts
 
     def open_symbols(self) -> list[str]:
         return self.ledger.open_symbols()

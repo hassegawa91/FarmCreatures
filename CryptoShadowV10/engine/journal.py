@@ -128,6 +128,20 @@ class TradeJournal:
         with self.lock:
             self.db.close()
 
+    def reset(self) -> dict[str, int]:
+        tables = ("execution_results", "executions", "signals", "feature_observations", "events")
+        with self.lock, self.db:
+            counts = {
+                table: int(self.db.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0])
+                for table in tables
+            }
+            for table in tables:
+                self.db.execute(f'DELETE FROM "{table}"')
+            self.db.execute(
+                "DELETE FROM sqlite_sequence WHERE name IN (?,?,?,?,?)", tables,
+            )
+        return counts
+
     def record_event(self, event: Any) -> None:
         with self.lock, self.db:
             self.db.execute(

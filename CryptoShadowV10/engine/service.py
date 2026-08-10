@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from engine.binance import BinancePublicClient, MarketSnapshot
 from engine.border_regime import BorderRegimeStrategy
 from engine.campaign import CampaignPolicy
 from engine.journal import TradeJournal
 from engine.execution import ExecutionRouter
+from engine.ledger_export import export_ledger_zip
 from engine.dump_reclaim import DumpExhaustionReclaimStrategy
 from engine.strategy import StrategyEvent
 from engine.simulation import ParallelStrategyLab
@@ -21,6 +25,7 @@ from engine.volatility_scalp import VolatilityExhaustionFadeScalpStrategy
 class TradingService:
     def __init__(self, config: dict[str, Any], root: Path):
         self.config = config
+        self.root = root
         self.strategy_config = config["strategy"]
         self.campaign_config = config.get("campaign") or {}
         self.campaign = CampaignPolicy(self.campaign_config)
@@ -73,6 +78,7 @@ class TradingService:
         self.thread: threading.Thread | None = None
         self.live_thread: threading.Thread | None = None
         self.execution_lock = threading.RLock()
+        self.scan_lock = threading.RLock()
         self.universe: list[str] = []
         self.entry_eligible_symbols: set[str] | None = None
         self.universe_updated_at = 0.0
@@ -653,7 +659,8 @@ class TradingService:
         while not self.stop_event.is_set():
             cycle_started = time.monotonic()
             try:
-                self._scan()
+                with self.scan_lock:
+                    self._scan()
             except Exception as exc:
                 self.errors.append(str(exc))
             target_seconds = float(self.config.get("scan_seconds", 60))
@@ -756,3 +763,60 @@ class TradingService:
         with self.lock:
             self.execution_state = result.get("remaining") or self.execution_state
         return result
+
+    def reset_all(self, confirmation: str) -> dict[str, Any]:
+        expected = "ZERAR_TUDO_TESTNET_SHADOW"
+        if str(self.config.get("mode") or "").upper() != "TESTNET":
+            raise ValueError("reset total permitido somente no modo TESTNET")
+        if confirmation != expected:
+            raise ValueError(f"confirmacao invalida; esperado {expected}")
+
+        stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M%S")
+        backup_dir = self.root / "data" / "archive" / f"panel_reset_{stamp}"
+        backup_dir.mkdir(parents=True, exist_ok=False)
+        with self.scan_lock, self.execution_lock:
+            for ledger in ("testnet", "shadow", "limited", "simulations"):
+                export_ledger_zip(
+                    ledger, self.config, self.root, backup_dir / f"{ledger}.zip",
+                )
+
+            close_result = self.execution.close_all()
+            if not close_result.get("ok"):
+                raise RuntimeError(
+                    "nao foi possivel encerrar todas as posicoes/ordens Testnet; "
+                    "os ledgers foram preservados"
+                )
+
+            cleared = {
+                "testnet": self.journal.reset(),
+                "shadow": self.real_shadow.reset(),
+                "limited": self.limited_shadow.reset(),
+                "simulations": self.simulation_lab.reset(),
+            }
+            for strategy in self.strategies:
+                states = getattr(strategy, "states", None)
+                if isinstance(states, dict):
+                    states.clear()
+            now = datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat(timespec="seconds")
+            self.config["sample_started_at"] = now
+            config_path = self.root / "config.json"
+            temp_path = self.root / "tmp" / "config.reset.tmp"
+            temp_path.parent.mkdir(parents=True, exist_ok=True)
+            temp_path.write_text(
+                json.dumps(self.config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+            )
+            temp_path.replace(config_path)
+            with self.lock:
+                self.execution_state = close_result.get("remaining") or {
+                    "mode": "TESTNET", "positions": [], "orders": [], "algo_orders": [],
+                }
+                self.errors = []
+
+        return {
+            "ok": True,
+            "mode": "TESTNET",
+            "sample_started_at": self.config["sample_started_at"],
+            "backup_dir": str(backup_dir.relative_to(self.root)),
+            "closed_testnet": close_result,
+            "cleared": cleared,
+        }

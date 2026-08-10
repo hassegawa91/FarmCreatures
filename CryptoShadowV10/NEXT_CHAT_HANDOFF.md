@@ -69,6 +69,8 @@ O painel possui botões para gerar esses extratos sob demanda:
 
 Cada botão baixa um ZIP com JSONL, manifesto de contagens e `config.sanitized.json`. Valores de chaves, segredos, tokens, senhas e credenciais são removidos automaticamente. Os ZIPs podem ser anexados diretamente a outro ChatGPT.
 
+O painel também possui `ZERAR TUDO`. Ele só é permitido em modo Testnet e exige digitar `ZERAR_TUDO_TESTNET_SHADOW` mais uma segunda confirmação. A rotina cria backups ZIP em `data/archive/panel_reset_*`, encerra posições e ordens Testnet e somente depois limpa Testnet, Shadow Real, Shadow individual e simulações. Se o fechamento da Testnet falhar, nenhum ledger é apagado. O botão não opera nem limpa a Binance real.
+
 ## Verificação operacional necessária
 
 O painel foi reiniciado após a implantação dos exports e respondeu saudável em `http://127.0.0.1:8000/health`, modo Testnet e coleta ativa. O PID observado após o restart era 12476. Sempre preservar os ledgers ao reiniciar.

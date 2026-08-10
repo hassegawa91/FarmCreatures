@@ -99,6 +99,18 @@ class RealMarketShadow:
         with self.lock:
             self.db.close()
 
+    def reset(self) -> dict[str, int]:
+        tables = ("real_shadow_events", "real_shadow_trades")
+        with self.lock, self.db:
+            counts = {
+                table: int(self.db.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0])
+                for table in tables
+            }
+            for table in tables:
+                self.db.execute(f'DELETE FROM "{table}"')
+            self.db.execute("DELETE FROM sqlite_sequence WHERE name IN (?,?)", tables)
+        return counts
+
     def _event(
         self, timestamp_ms: int, symbol: str, strategy: str,
         event_type: str, reason: str, payload: dict[str, Any] | None = None,

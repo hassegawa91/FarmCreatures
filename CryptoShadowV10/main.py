@@ -576,6 +576,16 @@ def api_close_all(payload: dict):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@app.post("/api/reset/all")
+def api_reset_all(payload: dict):
+    try:
+        return service.reset_all(str(payload.get("confirm") or ""))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @app.get("/minimal", response_class=HTMLResponse)
 def minimal_dashboard():
     return HTMLResponse(
@@ -653,6 +663,7 @@ button[data-tab="config"],button[data-tab="info"],button[data-tab="analysis"],bu
 .shadow-toggle{border:1px solid #58a6ff;background:#0d2740;color:#79c0ff;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700}
 .ledger-export-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:10px;width:100%}.ledger-export-actions .ledger-label{color:#8b949e;font-size:12px;margin-right:2px}
 .ledger-download{display:inline-block;border:1px solid #8957e5;background:#21143a;color:#d2a8ff;border-radius:8px;padding:7px 10px;text-decoration:none;font-size:12px;font-weight:800}.ledger-download:hover{border-color:#d2a8ff;color:#fff}
+.ledger-reset{border:1px solid #f85149;background:#3b1719;color:#ff7b72;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:900;cursor:pointer;margin-left:auto}.ledger-reset:hover{background:#5a1d20;color:#fff}.ledger-reset:disabled{opacity:.55;cursor:wait}
 .real-shadow-card{border-color:#1f6feb!important}.real-shadow-card.hidden{display:none!important}
 .real-shadow-panel{margin:10px 0 16px;padding:14px;border:1px solid #1f6feb;border-radius:10px;background:#0b1522;color:#c9d1d9}
 .real-shadow-panel.hidden{display:none!important}.real-shadow-panel h3{margin:0 0 5px;color:#79c0ff}.real-shadow-panel p{margin:3px 0 10px;color:#9fb3c8}
@@ -701,6 +712,21 @@ window.v10ToggleJaw=function(){
   if(showing){if(panel)panel.classList.add('hidden');try{if(v10JawTimer){clearInterval(v10JawTimer);v10JawTimer=null;}}catch(e){}}
   else if(activeChartPosition){window.v10LoadDerivativesJaw(activeChartPosition.symbol);}
   if(btn){btn.textContent=showing?'Mostrar OI / LSR':'Ocultar OI / LSR';btn.classList.toggle('active',!showing);}
+};
+window.v10ResetAll=async function(){
+  const phrase='ZERAR_TUDO_TESTNET_SHADOW';
+  const typed=prompt('ATENCAO: encerra posicoes e ordens TESTNET e zera Testnet, Shadow Real, Shadow individual e simulacoes. Um backup automatico sera criado.\n\nDigite exatamente: '+phrase);
+  if(typed===null)return;
+  if(typed!==phrase){alert('Confirmacao incorreta. Nada foi alterado.');return;}
+  if(!confirm('Ultima confirmacao: executar ZERAR TUDO agora?'))return;
+  const button=document.getElementById('v10ResetAll');if(button){button.disabled=true;button.textContent='ZERANDO...';}
+  try{
+    const response=await fetch('/api/reset/all',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:phrase})});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.detail||'Falha ao zerar');
+    alert('Reset concluido. Backup: '+data.backup_dir+'\nNova amostra: '+data.sample_started_at);
+    location.reload();
+  }catch(error){alert('RESET NAO CONCLUIDO: '+error.message);if(button){button.disabled=false;button.textContent='ZERAR TUDO';}}
 };
 document.addEventListener('DOMContentLoaded',()=>{
   const liveTitle=document.querySelector('#tab-live .panel-title');
@@ -771,7 +797,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     levToggle.onclick=()=>{const panel=document.getElementById('v10LimitedShadowPanel');const showing=panel?.classList.toggle('hidden')===false;levToggle.textContent=showing?'Ocultar Shadow limitada':'Mostrar Shadow limitada';};
     funnelHead.appendChild(levToggle);
     const exports=document.createElement('div');exports.id='v10LedgerExports';exports.className='ledger-export-actions';
-    exports.innerHTML=`<span class="ledger-label">Ledgers para enviar &agrave; an&aacute;lise:</span><a class="ledger-download" href="/api/export/ledger/testnet">Baixar Testnet</a><a class="ledger-download" href="/api/export/ledger/shadow">Baixar Shadow Real</a><a class="ledger-download" href="/api/export/ledger/limited">Baixar Shadow individual</a><a class="ledger-download" href="/api/export/ledger/simulations">Baixar corre&ccedil;&atilde;o staged</a>`;
+    exports.innerHTML=`<span class="ledger-label">Ledgers para enviar &agrave; an&aacute;lise:</span><a class="ledger-download" href="/api/export/ledger/testnet">Baixar Testnet</a><a class="ledger-download" href="/api/export/ledger/shadow">Baixar Shadow Real</a><a class="ledger-download" href="/api/export/ledger/limited">Baixar Shadow individual</a><a class="ledger-download" href="/api/export/ledger/simulations">Baixar corre&ccedil;&atilde;o staged</a><button type="button" id="v10ResetAll" class="ledger-reset" onclick="v10ResetAll()">ZERAR TUDO</button>`;
     funnelHead.appendChild(exports);
   }
   let lastStrategyStatus=null;

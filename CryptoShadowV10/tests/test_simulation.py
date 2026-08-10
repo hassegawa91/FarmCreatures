@@ -21,6 +21,36 @@ def market(**overrides):
 
 
 class SimulationTests(unittest.TestCase):
+    def test_staged_fade_can_keep_probe_without_opening_add(self):
+        with tempfile.TemporaryDirectory() as folder:
+            lab = ParallelStrategyLab({
+                "enabled": True, "fee_pct_per_side": 0.05, "slippage_pct_per_side": 0.0,
+                "logical_exit": {"enabled": True},
+                "staged_fade": {"enabled": True, "long_add_enabled": False,
+                                "margin_usdt": 50.0, "leverage": 10,
+                                "long_probe_fraction": 0.25, "long_add_trigger_r": 0.20,
+                                "short_probe_fraction": 0.10},
+                "trend": {"enabled": False}, "grid": {"enabled": False},
+            }, Path(folder) / "lab.sqlite")
+            try:
+                signal = {
+                    "setup": lab.VOLATILITY_FADE_SCALP, "symbol": "TESTUSDT",
+                    "direction": "LONG", "timestamp_ms": 1_000_000,
+                    "entry_price": 100.0, "stop_price": 98.0, "target_price": 100.8,
+                    "risk_pct": 2.0, "evidence": {},
+                }
+                lab.on_strategy_signal(signal, market(price=100.0))
+                lab.process(market(timestamp_ms=1_300_000, candle_open_time_ms=1_200_000,
+                                   price=100.4, candle_high=100.45, candle_low=100.1))
+                self.assertEqual(len(lab.ledger.open_rows(
+                    lab.STAGED_PROBE_PREFIX + lab.VOLATILITY_FADE_SCALP,
+                )), 1)
+                self.assertEqual(len(lab.ledger.open_rows(
+                    lab.STAGED_ADD_PREFIX + lab.VOLATILITY_FADE_SCALP,
+                )), 0)
+            finally:
+                lab.close()
+
     def test_staged_fade_opens_probe_and_adds_long_after_point_two_r(self):
         with tempfile.TemporaryDirectory() as folder:
             lab = ParallelStrategyLab({

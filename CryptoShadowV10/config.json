@@ -71,6 +71,7 @@
     },
     "staged_fade": {
       "enabled": true,
+      "long_add_enabled": false,
       "margin_usdt": 50.0,
       "leverage": 10,
       "long_probe_fraction": 0.25,
@@ -96,8 +97,8 @@
   },
   "campaign": {
     "enabled": true,
-    "management_revision": "STAGED_FADE_AB_SHADOW_V10",
-    "management_revision_started_at": "2026-08-10T09:37:30-03:00",
+    "management_revision": "FADE_PROBE_ONLY_SHADOW_V11",
+    "management_revision_started_at": "2026-08-10T17:35:00-03:00",
     "strategy_roles": {
       "DUMP_REVERSAL_LONG": "REVERSAL",
       "DUMP_CONTINUATION_SHORT": "CONFIRM",

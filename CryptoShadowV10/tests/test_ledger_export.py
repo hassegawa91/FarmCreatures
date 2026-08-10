@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from engine.ledger_export import export_ledger_zip, sanitize
+from engine.ledger_export import export_all_ledgers_zip, export_ledger_zip, sanitize
 
 
 class LedgerExportTests(unittest.TestCase):
@@ -47,6 +47,35 @@ class LedgerExportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             with self.assertRaises(ValueError):
                 export_ledger_zip("invalid", {}, Path(folder), Path(folder) / "x.zip")
+
+    def test_all_export_bundles_each_sanitized_ledger(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            specs = {
+                "testnet.sqlite": "CREATE TABLE signals(id INTEGER PRIMARY KEY)",
+                "shadow.sqlite": "CREATE TABLE real_shadow_trades(id INTEGER PRIMARY KEY)",
+                "limited.sqlite": "CREATE TABLE real_shadow_trades(id INTEGER PRIMARY KEY)",
+                "simulations.sqlite": "CREATE TABLE simulation_trades(id INTEGER PRIMARY KEY)",
+            }
+            for name, ddl in specs.items():
+                db = sqlite3.connect(root / name)
+                db.execute(ddl)
+                db.commit()
+                db.close()
+            config = {
+                "database_path": "testnet.sqlite",
+                "real_shadow": {"database_path": "shadow.sqlite"},
+                "limited_shadow": {"database_path": "limited.sqlite"},
+                "simulation_lab": {"database_path": "simulations.sqlite"},
+            }
+            output = root / "all.zip"
+            export_all_ledgers_zip(config, root, output)
+            with zipfile.ZipFile(output) as archive:
+                names = set(archive.namelist())
+            self.assertTrue({
+                "ledgers/testnet.zip", "ledgers/shadow.zip", "ledgers/limited.zip",
+                "ledgers/simulations.zip", "manifest.json",
+            }.issubset(names))
 
 
 if __name__ == "__main__":

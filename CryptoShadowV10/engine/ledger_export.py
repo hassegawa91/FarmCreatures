@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import tempfile
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -136,3 +137,32 @@ def export_ledger_zip(
 def export_filename(ledger: str) -> str:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"cryptoshadow_v10_{ledger}_{stamp}.zip"
+
+
+def export_all_ledgers_zip(
+    config: dict[str, Any], root: Path, output_path: Path,
+) -> dict[str, Any]:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest: dict[str, Any] = {
+        "format": "cryptoshadow-all-ledgers-v1",
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "sample_started_at": config.get("sample_started_at"),
+        "management_revision": (config.get("strategy") or {}).get("management_revision"),
+        "ledgers": {},
+    }
+    with tempfile.TemporaryDirectory(prefix="cryptoshadow_all_") as folder:
+        temporary = Path(folder)
+        with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
+            for ledger in LEDGER_SPECS:
+                ledger_path = temporary / f"{ledger}.zip"
+                ledger_manifest = export_ledger_zip(ledger, config, root, ledger_path)
+                manifest["ledgers"][ledger] = ledger_manifest["tables"]
+                archive.write(ledger_path, f"ledgers/{ledger}.zip")
+            archive.writestr(
+                "README.txt",
+                "CryptoShadow V10 - todos os ledgers para análise\n"
+                "Este pacote contém Testnet, Shadow Real, Shadow individual e simulações staged.\n"
+                "Envie somente este arquivo ao ChatGPT; cada ledger interno já está sanitizado.\n",
+            )
+            archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+    return manifest

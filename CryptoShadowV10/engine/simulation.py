@@ -363,7 +363,7 @@ class ParallelStrategyLab:
 
     def _open_staged_add(self, snapshot: MarketSnapshot) -> None:
         cfg = self.settings.get("staged_fade") or {}
-        if not bool(cfg.get("enabled", False)):
+        if not bool(cfg.get("enabled", False)) or not bool(cfg.get("long_add_enabled", True)):
             return
         for probe in self.ledger.open_rows(symbol=snapshot.symbol):
             if not str(probe["strategy"]).startswith(self.STAGED_PROBE_PREFIX):

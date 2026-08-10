@@ -18,7 +18,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
 from engine.config import ROOT, load_config
-from engine.ledger_export import LEDGER_SPECS, export_filename, export_ledger_zip
+from engine.ledger_export import (
+    LEDGER_SPECS, export_all_ledgers_zip, export_filename, export_ledger_zip,
+)
 from engine.service import TradingService
 
 
@@ -491,7 +493,7 @@ def api_legacy_config_write():
 
 @app.get("/api/export/ledger/{ledger}")
 def api_export_ledger(ledger: str):
-    if ledger not in LEDGER_SPECS:
+    if ledger not in {*LEDGER_SPECS, "all"}:
         raise HTTPException(status_code=404, detail="Ledger desconhecido")
     export_dir = ROOT / "tmp" / "ledger_exports"
     export_dir.mkdir(parents=True, exist_ok=True)
@@ -501,7 +503,10 @@ def api_export_ledger(ledger: str):
     output_path = Path(handle.name)
     handle.close()
     try:
-        export_ledger_zip(ledger, config, ROOT, output_path)
+        if ledger == "all":
+            export_all_ledgers_zip(config, ROOT, output_path)
+        else:
+            export_ledger_zip(ledger, config, ROOT, output_path)
     except FileNotFoundError as exc:
         output_path.unlink(missing_ok=True)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -797,7 +802,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     levToggle.onclick=()=>{const panel=document.getElementById('v10LimitedShadowPanel');const showing=panel?.classList.toggle('hidden')===false;levToggle.textContent=showing?'Ocultar Shadow limitada':'Mostrar Shadow limitada';};
     funnelHead.appendChild(levToggle);
     const exports=document.createElement('div');exports.id='v10LedgerExports';exports.className='ledger-export-actions';
-    exports.innerHTML=`<span class="ledger-label">Ledgers para enviar &agrave; an&aacute;lise:</span><a class="ledger-download" href="/api/export/ledger/testnet">Baixar Testnet</a><a class="ledger-download" href="/api/export/ledger/shadow">Baixar Shadow Real</a><a class="ledger-download" href="/api/export/ledger/limited">Baixar Shadow individual</a><a class="ledger-download" href="/api/export/ledger/simulations">Baixar corre&ccedil;&atilde;o staged</a><button type="button" id="v10ResetAll" class="ledger-reset" onclick="v10ResetAll()">ZERAR TUDO</button>`;
+    exports.innerHTML=`<span class="ledger-label">Ledgers para enviar &agrave; an&aacute;lise:</span><a class="ledger-download" href="/api/export/ledger/all">Baixar tudo</a><a class="ledger-download" href="/api/export/ledger/testnet">Baixar Testnet</a><a class="ledger-download" href="/api/export/ledger/shadow">Baixar Shadow Real</a><a class="ledger-download" href="/api/export/ledger/limited">Baixar Shadow individual</a><a class="ledger-download" href="/api/export/ledger/simulations">Baixar corre&ccedil;&atilde;o staged</a><button type="button" id="v10ResetAll" class="ledger-reset" onclick="v10ResetAll()">ZERAR TUDO</button>`;
     funnelHead.appendChild(exports);
   }
   let lastStrategyStatus=null;

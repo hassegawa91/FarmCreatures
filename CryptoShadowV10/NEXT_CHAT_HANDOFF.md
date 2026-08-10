@@ -18,7 +18,8 @@ Continuar a observação da correção staged dos fades sem perder o histórico 
 ## Estado da revisão atual
 
 - Diretório operacional local: `C:\v10`
-- Revisão: `STAGED_FADE_AB_SHADOW_V10`
+- Revisão atual: `FADE_PROBE_ONLY_SHADOW_V11`
+- Início desta revisão: `2026-08-10T17:35:00-03:00`
 - Início da amostra: `2026-08-10T09:37:30-03:00`
 - Modo: Testnet; Binance real zerada pelo usuário.
 - `VOLATILITY_EXHAUSTION_FADE_SCALP_V1` está em `testnet_observation_only_setups`.
@@ -63,11 +64,14 @@ Um ChatGPT trabalhando fora desta máquina terá acesso ao código e a este hand
 O painel possui botões para gerar esses extratos sob demanda:
 
 - `Baixar Testnet`: sinais, execuções, resultados, eventos e observações de features.
+- `Baixar tudo`: reúne Testnet, Shadow Real, Shadow individual e staged em um único ZIP.
 - `Baixar Shadow Real`: trades e eventos do mercado real simulado.
 - `Baixar Shadow individual`: ledger da Shadow limitada.
 - `Baixar correção staged`: trades e eventos de todas as simulações paralelas.
 
 Cada botão baixa um ZIP com JSONL, manifesto de contagens e `config.sanitized.json`. Valores de chaves, segredos, tokens, senhas e credenciais são removidos automaticamente. Os ZIPs podem ser anexados diretamente a outro ChatGPT.
+
+A análise quantitativa completa do snapshot de 17:35 está em `docs/ANALISE_RESULTADOS_V10_20260810.md`. Ela concluiu que a diferença Testnet × Shadow era principalmente composição de sinais: continuações positivas nos dois ambientes e fades negativos somente na Shadow. O add LONG após `+0,20R` foi desabilitado para novas simulações; probes LONG 25% e SHORT 10% continuam sem add.
 
 O painel também possui `ZERAR TUDO`. Ele só é permitido em modo Testnet e exige digitar `ZERAR_TUDO_TESTNET_SHADOW` mais uma segunda confirmação. A rotina cria backups ZIP em `data/archive/panel_reset_*`, encerra posições e ordens Testnet e somente depois limpa Testnet, Shadow Real, Shadow individual e simulações. Se o fechamento da Testnet falhar, nenhum ledger é apagado. O botão não opera nem limpa a Binance real.
 
@@ -86,4 +90,4 @@ O painel foi reiniciado após a implantação dos exports e respondeu saudável 
 
 ## Prompt para o próximo ChatGPT
 
-`Abra o projeto CryptoShadowV10 no repositório hassegawa91/FarmCreatures e leia NEXT_CHAT_HANDOFF.md. Continue o acompanhamento da revisão STAGED_FADE_AB_SHADOW_V10. Não resete os bancos e não trate os primeiros resultados como validação. Se estiver nesta máquina, confira primeiro a saúde do serviço e use os bancos locais para comparar baseline versus staged nos mesmos sinais.`
+`Abra o projeto CryptoShadowV10 no repositório hassegawa91/FarmCreatures, leia NEXT_CHAT_HANDOFF.md e docs/ANALISE_RESULTADOS_V10_20260810.md. Continue o acompanhamento da revisão FADE_PROBE_ONLY_SHADOW_V11. Não resete os bancos e não trate os primeiros resultados como validação. Se estiver nesta máquina, use os bancos locais para comparar baseline versus probe-only nos mesmos sinais.`

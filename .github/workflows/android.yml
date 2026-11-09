@@ -1,0 +1,33 @@
+name: FarmCreatures Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Build with Unity
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: Android
+          unityVersion: 6000.4.11f1
+          buildName: FarmCreatures
+          buildsPath: build
+      - name: Upload APK build
+        uses: actions/upload-artifact@v4
+        with:
+          name: FarmCreatures-Android-build
+          path: build/Android/
+          if-no-files-found: error

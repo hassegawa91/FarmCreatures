@@ -1,4 +1,3 @@
-
 name: FarmCreatures Android APK
 
 on:
@@ -6,6 +5,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: farmcreatures-android-local
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -19,14 +22,25 @@ jobs:
           lfs: true
           persist-credentials: false
 
-      - name: Prepare automatic Unity build
+      - name: Prepare clean short Unity project path
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Force -Path "Assets\Editor" | Out-Null
+          $ErrorActionPreference = 'Stop'
+          $project = Join-Path $env:USERPROFILE 'FC_CI'
+          if ((Split-Path $project -Leaf) -ne 'FC_CI') { throw 'Caminho inseguro' }
+          if (Test-Path $project) { Remove-Item -LiteralPath $project -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $project | Out-Null
+          foreach ($name in @('Assets', 'Packages', 'ProjectSettings')) {
+            $source = Join-Path $env:GITHUB_WORKSPACE $name
+            if (!(Test-Path $source)) { throw "Pasta nao encontrada: $source" }
+            Copy-Item -LiteralPath $source -Destination $project -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path (Join-Path $project 'Assets\Editor') | Out-Null
           $script = @'
           using System;
           using System.IO;
           using UnityEditor;
+          using UnityEditor.Build;
           using UnityEditor.Build.Reporting;
           using UnityEngine;
 
@@ -34,47 +48,47 @@ jobs:
           {
               public static void Build()
               {
-                  const string mainScene = "Assets/Scenes/MainScene.unity";
-                  if (AssetDatabase.LoadAssetAtPath<SceneAsset>(mainScene) == null)
-                      throw new Exception("MainScene.unity nao encontrada: " + mainScene);
+                  const string scene = "Assets/Scenes/MainScene.unity";
+                  if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scene) == null)
+                      throw new Exception("MainScene.unity nao encontrada");
 
-                  string projectPath = Directory.GetParent(Application.dataPath).FullName;
-                  string apkPath = Path.Combine(projectPath, "build", "Android", "FarmCreatures.apk");
-                  Directory.CreateDirectory(Path.GetDirectoryName(apkPath));
-
+                  string root = Directory.GetParent(Application.dataPath).FullName;
+                  string apk = Path.Combine(root, "build", "Android", "FarmCreatures.apk");
+                  Directory.CreateDirectory(Path.GetDirectoryName(apk));
                   EditorUserBuildSettings.buildAppBundle = false;
                   PlayerSettings.productName = "FarmCreatures";
-
-                  var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                  PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.farmcreatures.game");
+                  var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions
                   {
-                      scenes = new[] { mainScene },
-                      locationPathName = apkPath,
+                      scenes = new[] { scene },
+                      locationPathName = apk,
                       target = BuildTarget.Android,
                       options = BuildOptions.None
                   });
-
-                  if (report.summary.result != BuildResult.Succeeded || !File.Exists(apkPath))
-                      throw new Exception("Falha ao gerar APK: " + report.summary.result);
-
-                  Debug.Log("APK gerado: " + apkPath);
+                  if (result.summary.result != BuildResult.Succeeded || !File.Exists(apk))
+                      throw new Exception("Build Android falhou: " + result.summary.result);
+                  Debug.Log("APK criado em " + apk);
               }
           }
           '@
-          Set-Content -Path "Assets\Editor\FarmCreaturesAndroidBuild.cs" -Value $script -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $project 'Assets\Editor\FarmCreaturesAndroidBuild.cs') -Value $script -Encoding UTF8
+          Write-Host "Projeto temporario preparado em $project"
 
-      - name: Build Android APK with local Unity
+      - name: Build Android with local Unity
         shell: powershell
         run: |
-          $unity = "C:\Program Files\Unity\Hub\Editor\6000.4.11f1\Editor\Unity.exe"
-          $log = Join-Path $env:RUNNER_TEMP "FarmCreatures-Unity.log"
+          $ErrorActionPreference = 'Stop'
+          $project = Join-Path $env:USERPROFILE 'FC_CI'
+          $unity = 'C:\Program Files\Unity\Hub\Editor\6000.4.11f1\Editor\Unity.exe'
+          $log = Join-Path $env:RUNNER_TEMP 'FarmCreatures-Unity.log'
           if (!(Test-Path $unity)) { throw "Unity nao encontrado: $unity" }
-          $unityArgs = @("-batchmode", "-quit", "-accept-apiupdate", "-projectPath", "`"$env:GITHUB_WORKSPACE`"", "-buildTarget", "Android", "-executeMethod", "FarmCreaturesAndroidBuild.Build", "-logFile", "`"$log`"")
+          $unityArgs = @('-batchmode', '-quit', '-accept-apiupdate', '-projectPath', "`"$project`"", '-buildTarget', 'Android', '-executeMethod', 'FarmCreaturesAndroidBuild.Build', '-logFile', "`"$log`"")
           $process = Start-Process -FilePath $unity -ArgumentList $unityArgs -Wait -PassThru
-          if (Test-Path $log) { Get-Content $log -Tail 180 }
-          if ($process.ExitCode -ne 0) { throw "Unity encerrou com codigo $($process.ExitCode)" }
-          $apk = Join-Path $env:GITHUB_WORKSPACE "build\Android\FarmCreatures.apk"
-          if (!(Test-Path $apk)) { throw "APK nao foi criado: $apk" }
-          Write-Host "APK criado com sucesso: $apk"
+          if (Test-Path $log) { Get-Content -LiteralPath $log -Tail 180 }
+          if ($process.ExitCode -ne 0) { throw "Unity finalizou com codigo $($process.ExitCode)" }
+          $apk = Join-Path $project 'build\Android\FarmCreatures.apk'
+          if (!(Test-Path $apk)) { throw "APK nao encontrado: $apk" }
+          Write-Host "APK gerado com sucesso: $apk"
 
       - name: Upload Unity log
         if: always()
@@ -89,6 +103,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FarmCreatures-Android-APK
-          path: build/Android/FarmCreatures.apk
+          path: ~/FC_CI/build/Android/FarmCreatures.apk
           if-no-files-found: error
           retention-days: 14

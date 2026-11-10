@@ -1,33 +1,94 @@
+
 name: FarmCreatures Android APK
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
-    name: Build Android APK
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    name: Build Android APK on Windows
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           lfs: true
-      - name: Build with Unity
-        uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          targetPlatform: Android
-          unityVersion: 6000.4.11f1
-          buildName: FarmCreatures
-          buildsPath: build
-      - name: Upload APK build
+          persist-credentials: false
+
+      - name: Prepare automatic Unity build
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "Assets\Editor" | Out-Null
+          $script = @'
+          using System;
+          using System.IO;
+          using UnityEditor;
+          using UnityEditor.Build.Reporting;
+          using UnityEngine;
+
+          public static class FarmCreaturesAndroidBuild
+          {
+              public static void Build()
+              {
+                  const string mainScene = "Assets/Scenes/MainScene.unity";
+                  if (AssetDatabase.LoadAssetAtPath<SceneAsset>(mainScene) == null)
+                      throw new Exception("MainScene.unity nao encontrada: " + mainScene);
+
+                  string projectPath = Directory.GetParent(Application.dataPath).FullName;
+                  string apkPath = Path.Combine(projectPath, "build", "Android", "FarmCreatures.apk");
+                  Directory.CreateDirectory(Path.GetDirectoryName(apkPath));
+
+                  EditorUserBuildSettings.buildAppBundle = false;
+                  PlayerSettings.productName = "FarmCreatures";
+
+                  var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                  {
+                      scenes = new[] { mainScene },
+                      locationPathName = apkPath,
+                      target = BuildTarget.Android,
+                      options = BuildOptions.None
+                  });
+
+                  if (report.summary.result != BuildResult.Succeeded || !File.Exists(apkPath))
+                      throw new Exception("Falha ao gerar APK: " + report.summary.result);
+
+                  Debug.Log("APK gerado: " + apkPath);
+              }
+          }
+          '@
+          Set-Content -Path "Assets\Editor\FarmCreaturesAndroidBuild.cs" -Value $script -Encoding UTF8
+
+      - name: Build Android APK with local Unity
+        shell: powershell
+        run: |
+          $unity = "C:\Program Files\Unity\Hub\Editor\6000.4.11f1\Editor\Unity.exe"
+          $log = Join-Path $env:RUNNER_TEMP "FarmCreatures-Unity.log"
+          if (!(Test-Path $unity)) { throw "Unity nao encontrado: $unity" }
+          $unityArgs = @("-batchmode", "-quit", "-accept-apiupdate", "-projectPath", "`"$env:GITHUB_WORKSPACE`"", "-buildTarget", "Android", "-executeMethod", "FarmCreaturesAndroidBuild.Build", "-logFile", "`"$log`"")
+          $process = Start-Process -FilePath $unity -ArgumentList $unityArgs -Wait -PassThru
+          if (Test-Path $log) { Get-Content $log -Tail 180 }
+          if ($process.ExitCode -ne 0) { throw "Unity encerrou com codigo $($process.ExitCode)" }
+          $apk = Join-Path $env:GITHUB_WORKSPACE "build\Android\FarmCreatures.apk"
+          if (!(Test-Path $apk)) { throw "APK nao foi criado: $apk" }
+          Write-Host "APK criado com sucesso: $apk"
+
+      - name: Upload Unity log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: FarmCreatures-Android-build
-          path: build/Android/
+          name: FarmCreatures-Unity-log
+          path: ${{ runner.temp }}/FarmCreatures-Unity.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FarmCreatures-Android-APK
+          path: build/Android/FarmCreatures.apk
           if-no-files-found: error
+          retention-days: 14
